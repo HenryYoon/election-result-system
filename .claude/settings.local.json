@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\shared\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\crawler\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\ocr\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\review\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\docker\\\\crawler\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"d:\\\\coding\\\\election-result-system\\\\docker\\\\ocr\")"
+    ]
+  }
+}

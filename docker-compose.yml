@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  # =========================================
+  # 선관위 크롤러
+  # =========================================
+  crawler:
+    build:
+      context: .
+      dockerfile: docker/crawler/Dockerfile
+    container_name: election_crawler
+    volumes:
+      - ./data:/app/data                         # 수집 HTML/CSV 저장
+      - ./nec_urls.csv:/app/nec_urls.csv:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # =========================================
+  # OCR 파이프라인 (드라이브 감시 + OCR 실행)
+  # =========================================
+  ocr:
+    build:
+      context: .
+      dockerfile: docker/ocr/Dockerfile
+    container_name: election_ocr
+    volumes:
+      - ./images:/app/images                     # 다운로드 이미지
+      - ./ocr_results:/app/ocr_results           # OCR 결과 (검수 앱과 공유)
+      - ./approved:/app/approved                 # 승인된 항목
+      - ./processed_ids.json:/app/processed_ids.json  # 처리된 파일 ID 추적
+    env_file:
+      - .env
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+# 공유 볼륨 (Streamlit 검수 앱이 로컬에서 접근)
+volumes: {}
