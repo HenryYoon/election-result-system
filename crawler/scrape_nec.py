@@ -209,20 +209,29 @@ def save_files(
     headers: list[str],
     html_source: str,
 ) -> None:
-    """HTML과 CSV를 지정 폴더에 저장한다."""
-    folder.mkdir(parents=True, exist_ok=True)
+    """HTML과 CSV를 시간대 폴더 아래 html/, csv/ 서브폴더에 저장한다.
 
+    저장 경로:
+        {folder}/{time_suffix}/html/{city}_{town}.html
+        {folder}/{time_suffix}/csv/{city}_{town}.csv
+    """
     safe_city = city_name.replace("/", "_")
     safe_town = town_name.replace("/", "_")
-    base_name = f"{safe_city}_{safe_town}_{time_suffix}"
+    base_name = f"{safe_city}_{safe_town}"
+
+    time_folder = folder / time_suffix
+    html_dir = time_folder / "html"
+    csv_dir = time_folder / "csv"
+    html_dir.mkdir(parents=True, exist_ok=True)
+    csv_dir.mkdir(parents=True, exist_ok=True)
 
     # CSV 저장
-    csv_path = folder / f"{base_name}.csv"
+    csv_path = csv_dir / f"{base_name}.csv"
     df = pd.DataFrame(all_rows, columns=headers)
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
     # HTML 저장
-    html_path = folder / f"{base_name}.html"
+    html_path = html_dir / f"{base_name}.html"
     html_path.write_text(html_source, encoding="utf-8")
 
 
@@ -290,22 +299,23 @@ def crawl_all_targets() -> None:
     )
 
     driver = make_chrome_driver()
-    all_data: list[list] = []
-    all_headers: list[str] | None = None
-    last_html: str = ""
+    # tc → (rows, headers, html) 매핑
+    tc_data: dict[str, tuple[list[list], list[str], str]] = {}
 
     try:
-        for _, row in targets_df.iterrows():
-            city_code = str(row["cityCode"]).strip()
-            town_code = str(row["townCode"]).strip()
-            city_name = str(row.get("cityName", city_code)).strip()
-            town_name = str(row.get("townName", town_code)).strip()
+        for tc in time_codes:
+            tc_suffix = make_filename_suffix(time_codes[: time_codes.index(tc) + 1])
+            tc_rows_all: list[list] = []
+            tc_headers: list[str] | None = None
+            tc_last_html: str = ""
 
-            # 각 timeCode마다 수집
-            for tc in time_codes:
-                logger.info(
-                    f"[{city_name} {town_name}] timeCode={tc} 수집 시작..."
-                )
+            for _, row in targets_df.iterrows():
+                city_code = str(row["cityCode"]).strip()
+                town_code = str(row["townCode"]).strip()
+                city_name = str(row.get("cityName", city_code)).strip()
+                town_name = str(row.get("townName", town_code)).strip()
+
+                logger.info(f"[{city_name} {town_name}] timeCode={tc} 수집 시작...")
                 rows, headers = fetch_table_for_region(
                     driver,
                     city_code,
@@ -317,46 +327,50 @@ def crawl_all_targets() -> None:
                 )
 
                 if rows is None:
+                    time.sleep(random.uniform(0.5, 1.5))
                     continue
 
-                if all_headers is None:
-                    all_headers = headers
+                if tc_headers is None:
+                    tc_headers = headers
 
-                all_data.extend(rows)
+                tc_rows_all.extend(rows)
+                tc_last_html = driver.page_source
 
-                # HTML 저장용 (마지막 페이지 소스 사용)
-                last_html = driver.page_source
-
-            # 지역별 파일 저장 (해당 지역의 모든 timeCode 데이터)
-            region_rows = [r for r in all_data if r[headers.index("조회_구군코드")] == town_code]
-            if region_rows and all_headers:
+                # 지역별 파일 저장 (해당 timeCode suffix로)
                 save_files(
                     save_folder,
                     city_name,
                     town_name,
-                    time_suffix,
-                    region_rows,
-                    all_headers,
-                    last_html,
+                    tc_suffix,
+                    rows,
+                    headers,
+                    driver.page_source,
                 )
 
-            # 서버 부하 방지 랜덤 딜레이
-            time.sleep(random.uniform(0.5, 1.5))
+                time.sleep(random.uniform(0.5, 1.5))
+
+            if tc_headers:
+                tc_data[tc] = (tc_rows_all, tc_headers, tc_last_html)
+
+                # 전체지역 통합 CSV (timeCode별) → {time_suffix}/csv/ 아래
+                total_csv_dir = save_folder / tc_suffix / "csv"
+                total_csv_dir.mkdir(parents=True, exist_ok=True)
+                total_csv = total_csv_dir / "전체지역.csv"
+                pd.DataFrame(tc_rows_all, columns=tc_headers).to_csv(
+                    total_csv, index=False, encoding="utf-8-sig"
+                )
+                logger.info(f"통합 CSV 저장: {total_csv}")
 
     finally:
         driver.quit()
         logger.info("Chrome 드라이버 종료")
 
-    # 통합 CSV 저장
-    if all_data and all_headers:
-        total_csv = save_folder / f"전체지역_{time_suffix}.csv"
-        pd.DataFrame(all_data, columns=all_headers).to_csv(
-            total_csv, index=False, encoding="utf-8-sig"
-        )
-        logger.info(f"통합 CSV 저장: {total_csv}")
-
-        # 구글 시트 업로드
-        upload_to_gsheet(all_data, all_headers, DATE_CODE)
+    # 구글 시트 업로드 — 가장 마지막(최신) timeCode 데이터로
+    if tc_data:
+        last_tc = time_codes[-1]
+        if last_tc in tc_data:
+            all_data, all_headers, _ = tc_data[last_tc]
+            upload_to_gsheet(all_data, all_headers, DATE_CODE)
     else:
         logger.warning("수집된 데이터가 없습니다.")
 

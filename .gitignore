@@ -1,0 +1,37 @@
+# 환경변수 (API 키, 시트 ID 등)
+.env
+
+# 수집 데이터
+data/
+images/
+
+# OCR 결과 및 승인 데이터 (참관인 개인정보 포함)
+ocr_results/
+approved/
+
+# 드라이브 처리 이력
+processed_ids.json
+
+# 구글 서비스 계정 키
+*.json
+!package.json
+!package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+confidential/

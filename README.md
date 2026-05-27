@@ -108,17 +108,21 @@ ELECTION_ID=0020250603   # 과거 선거 ID 사용
 ```
 data/
 └── 2026_05_29_08_05/
-    ├── 서울특별시_종로구_07시.html
-    ├── 서울특별시_종로구_07시.csv
-    ├── 서울특별시_종로구_07~08시.html
-    ├── 서울특별시_종로구_07~08시.csv
-    ...
-    └── 전체지역_07~08시.csv
+    ├── 07시/
+    │   ├── html/
+    │   │   └── 서울특별시_종로구.html  ...
+    │   └── csv/
+    │       ├── 서울특별시_종로구.csv   ...
+    │       └── 전체지역.csv
+    └── 07~08시/
+        ├── html/
+        │   └── 서울특별시_종로구.html  ...
+        └── csv/
+            ├── 서울특별시_종로구.csv   ...
+            └── 전체지역.csv
 ```
 
 ### 구글 시트 구조
-
-스프레드시트: `1sBLCs8So45lCD5xQfhmrPr_HlA1zgwR0-i1T23bw09s`
 
 | 시트명 | 내용 |
 |--------|------|
@@ -158,17 +162,17 @@ data/
     "booth_name": "종로구사전투표소",
     "inside_count": 167,
     "outside_count": 38,
-    "observer_name": "홍길동",
-    "observer_phone": "010-1234-5678"
+    "observer_name": "...",
+    "observer_phone": "..."
   },
   "current_page": 1,
   "total_pages": 3
 }
 ```
 
-### 참관인 정보 스프레드시트
+### 참관인 정보
 
-스프레드시트: `1LeJthvK8DYxYoCmCP0evfegeDcCZh2O5lGCAQNQauf4`
+**비공개**
 
 ---
 
