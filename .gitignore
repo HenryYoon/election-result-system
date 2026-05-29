@@ -5,6 +5,16 @@
 data/
 images/
 
+# 로그
+logs/
+*.log
+
+# 분석 산출물 (엑셀 등)
+*.xlsx
+
+# openchrome MCP 프로필
+.openchrome/
+
 # OCR 결과 및 승인 데이터 (참관인 개인정보 포함)
 ocr_results/
 approved/

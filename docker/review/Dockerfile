@@ -1,11 +1,6 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgl1 \
     tzdata \
     --no-install-recommends \
  && ln -snf /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
@@ -16,13 +11,10 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 ENV TZ=Asia/Seoul
 
-COPY docker/ocr/requirements.txt /app/requirements.txt
+COPY docker/review/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY shared/ /app/shared/
-COPY ocr/ /app/ocr/
+COPY review/ /app/review/
 
-COPY docker/ocr/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-CMD ["/app/start.sh"]
+CMD ["streamlit", "run", "review/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
