@@ -165,8 +165,8 @@ class CrawlerDaemon(Daemon):
             # 확정일(과거 일차) 감시: 07~18 전부 이미 발표됨 → 현재 시각 무시하고 전수 수집
             return time_codes_until(18)
         else:
-            # 선관위는 직전 시간대 누계만 발표 → 한 시간 빼서 발표 완료된 것만 수집
-            end = now.hour - 1
+            # 선관위는 07시부터 매시 누계를 발표 → 현재 시각의 시간대까지 수집
+            end = now.hour
         return time_codes_until(end)
 
     def tick(self) -> None:
