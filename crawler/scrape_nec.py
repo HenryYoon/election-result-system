@@ -137,6 +137,8 @@ class CrawlerDaemon(Daemon):
     interval_sec = 600  # 10분
 
     def __init__(self) -> None:
+        # 날짜코드별로 로그 파일 분리 (crawler_d1.log / crawler_d2.log) → 동시 실행 충돌 방지
+        self.name = f"crawler_d{settings.date_code}"
         super().__init__()
         self.test_clock = TestClock() if settings.test_mode else None
         self.backup = make_backup()
@@ -154,6 +156,9 @@ class CrawlerDaemon(Daemon):
         if self.test_clock:
             end = self.test_clock.end_hour(now)
             self.logger.info(f"[TEST] 시뮬레이션 종료시간: {end:02d}시")
+        elif settings.collect_full_day:
+            # 확정일(과거 일차) 감시: 07~18 전부 이미 발표됨 → 현재 시각 무시하고 전수 수집
+            return time_codes_until(18)
         else:
             # 선관위는 직전 시간대 누계만 발표 → 한 시간 빼서 발표 완료된 것만 수집
             end = now.hour - 1
@@ -172,7 +177,8 @@ class CrawlerDaemon(Daemon):
             return
 
         folder_name = now.strftime("%Y_%m_%d_%H_%M")
-        save_folder = settings.data_dir / folder_name
+        # 날짜코드별 하위폴더(data/d1, data/d2)로 분리 → 동시 실행 시 출력 덮어쓰기 방지
+        save_folder = settings.data_dir / f"d{settings.date_code}" / folder_name
         self.logger.info(
             f"수집 시작 | 폴더={folder_name} | 시간대={codes}(최신순) | "
             f"지역={len(targets)} | 스레드={settings.crawler_threads}"

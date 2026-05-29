@@ -43,6 +43,7 @@ class Settings:
     # 크롤러
     crawler_threads: int
     crawler_engine: str  # "requests"(기본, 크롬 불필요) | "selenium"
+    collect_full_day: bool  # 1이면 현재 시각 무시하고 07~18 전수 수집 (확정일 사후조작 감시용)
 
     # 구글 드라이브 (검수용 이미지 소스)
     google_service_account_json: str
@@ -71,6 +72,7 @@ class Settings:
             test_mode=test_mode,
             crawler_threads=_int("CRAWLER_THREADS", 4),
             crawler_engine=_env("CRAWLER_ENGINE", "requests"),
+            collect_full_day=_bool("COLLECT_FULL_DAY", False),
             google_service_account_json=_env("GOOGLE_SERVICE_ACCOUNT_JSON"),
             drive_folder_id=_env("DRIVE_FOLDER_ID"),
             drive_poll_interval=_int("DRIVE_POLL_INTERVAL", 60),

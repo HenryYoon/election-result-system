@@ -1,13 +1,47 @@
 services:
   # =========================================
-  # 선관위 크롤러 (requests 엔진, 크롬 불필요)
+  # 1일차 감시 (DATE_CODE=1)
+  # 확정 발표된 07~18시를 매 사이클 전수 재수집 → 과거 숫자 사후조작 탐지
+  # 출력: data/d1/...  로그: logs/crawler_d1.log
   # =========================================
-  crawler:
+  crawler_d1:
     build:
       context: .
       dockerfile: docker/crawler/Dockerfile
-    container_name: election_crawler
+    image: election-crawler
+    container_name: election_crawler_d1
     init: true
+    environment:
+      DATE_CODE: "1"
+      COLLECT_FULL_DAY: "1"
+      CRAWLER_THREADS: "2"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./nec_urls.csv:/app/nec_urls.csv:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # =========================================
+  # 2일차 신규 수집 (DATE_CODE=2)
+  # 발표 완료된 직전 시간대까지 수집
+  # 출력: data/d2/...  로그: logs/crawler_d2.log
+  # =========================================
+  crawler_d2:
+    image: election-crawler
+    container_name: election_crawler_d2
+    init: true
+    depends_on:
+      - crawler_d1
+    environment:
+      DATE_CODE: "2"
+      CRAWLER_THREADS: "4"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
