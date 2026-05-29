@@ -52,6 +52,9 @@ class Daemon(ABC):
     def tick(self) -> None:
         """1회 실행할 작업. 구현체가 정의."""
 
+    def on_fatal(self, exc: Exception) -> None:
+        """tick()이 통째로 실패했을 때 호출되는 후처리 훅 (알림 등). 기본 무동작."""
+
     def run(self) -> None:
         self.logger.info(f"🚀 {self.name} 시작 | 간격={self.interval_sec}s")
         if self.run_on_start:
@@ -68,3 +71,7 @@ class Daemon(ABC):
             self.tick()
         except Exception as e:
             self.logger.critical(f"치명적 오류: {e}", exc_info=True)
+            try:
+                self.on_fatal(e)
+            except Exception:
+                pass

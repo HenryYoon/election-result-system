@@ -53,6 +53,9 @@ class Settings:
     # 구글 드라이브 백업 (data/ → 이 폴더로 증분 백업, 비우면 비활성)
     backup_drive_folder_id: str
 
+    # 슬랙 알림 (Incoming Webhook URL, 비우면 비활성)
+    slack_webhook_url: str
+
     # 경로
     base_dir: Path = BASE_DIR
     data_dir: Path = BASE_DIR / "data"
@@ -77,6 +80,7 @@ class Settings:
             drive_folder_id=_env("DRIVE_FOLDER_ID"),
             drive_poll_interval=_int("DRIVE_POLL_INTERVAL", 60),
             backup_drive_folder_id=_env("BACKUP_DRIVE_FOLDER_ID"),
+            slack_webhook_url=_env("SLACK_WEBHOOK_URL"),
         )
 
 

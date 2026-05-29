@@ -22,6 +22,7 @@ from crawler.nec_client import FetchResult, make_client
 from shared.config import settings
 from shared.daemon import Daemon
 from shared.drive_backup import make_backup
+from shared.notify import make_notifier
 
 
 # ==========================================
@@ -142,6 +143,10 @@ class CrawlerDaemon(Daemon):
         super().__init__()
         self.test_clock = TestClock() if settings.test_mode else None
         self.backup = make_backup()
+        self.slack = make_notifier(prefix=f"[{self.name}] ")
+        self._last_suffix: str | None = None  # 직전 사이클 최신 시간대 (새 시간대 판별용)
+        if self.slack.enabled:
+            self.logger.info("슬랙 알림 활성")
         if settings.test_mode:
             self.interval_sec = 600  # 10분
             self.logger.info("[TEST] 10분 간격 시뮬레이션 모드")
@@ -188,6 +193,9 @@ class CrawlerDaemon(Daemon):
         # 시간대별 폴더명(누적 suffix) 사전 계산: tc -> "06~NN시"
         suffix_of = {tc: time_suffix(codes[: i + 1]) for i, tc in enumerate(codes)}
 
+        errors: list[str] = []  # 이 사이클의 지역 단위 오류 수집 → 알림 요약에 포함
+        latest_rows = 0  # 최신 시간대(가장 먼저 처리) 행수
+
         # 시간대를 '최신순'으로 처리 → 최신 시각이 가장 먼저 완성/기록됨 (시의성)
         # 과거 시각은 그 뒤로 이어서 재수집 (사후조작 검증용 전수 수집 유지)
         try:
@@ -211,6 +219,7 @@ class CrawlerDaemon(Daemon):
                         except Exception as e:
                             city = region.get("cityName", "?"); town = region.get("townName", "?")
                             self.logger.error(f"[{city} {town}] tc={tc} 오류: {e}")
+                            errors.append(f"{city} {town} tc={tc}: {e}")
                     # 이 시각 전체지역 CSV 즉시 기록
                     if headers and rows:
                         out_dir = save_folder / suffix / "csv"
@@ -219,10 +228,13 @@ class CrawlerDaemon(Daemon):
                             out_dir / "전체지역.csv", index=False, encoding="utf-8-sig"
                         )
                         self.logger.info(f"✓ {suffix} 완성 ({len(rows)}행) → {out_dir/'전체지역.csv'}")
+                        if tc == codes[-1]:  # 최신 시간대
+                            latest_rows = len(rows)
         finally:
             _close_all_clients()
 
         self.logger.info("=" * 60 + f" 크롤링 완료: {folder_name}")
+        self._notify_cycle(suffix_of[codes[-1]], folder_name, latest_rows, errors)
 
         if self.backup:
             try:
@@ -230,6 +242,37 @@ class CrawlerDaemon(Daemon):
                 self.logger.info(f"드라이브 백업: {n}개 파일 업로드")
             except Exception as e:
                 self.logger.error(f"드라이브 백업 실패: {e}", exc_info=True)
+
+    def _notify_cycle(
+        self, latest_suffix: str, folder_name: str, latest_rows: int, errors: list[str]
+    ) -> None:
+        """사이클 완료 슬랙 알림.
+
+        매 10분 동일 시간대를 재수집(특히 d1 전수 감시)하므로, 알림은
+        '새 시간대가 발표됐을 때' 또는 '오류가 있을 때'만 보낸다 (스팸 방지).
+        """
+        if not self.slack.enabled:
+            return
+        new_timecode = latest_suffix != self._last_suffix
+        self._last_suffix = latest_suffix
+        if errors:
+            head = "⚠️"
+        elif new_timecode:
+            head = "✅"
+        else:
+            return  # 새 시간대 없음 + 오류 없음 → 동일 데이터 재수집, 알림 생략
+        msg = (
+            f"{head} {latest_suffix} 수집 완료 | 폴더 {folder_name} | "
+            f"최신 {latest_rows:,}행 | 오류 {len(errors)}건"
+        )
+        if errors:
+            sample = "\n".join(f"  • {e}" for e in errors[:5])
+            extra = f"\n…외 {len(errors) - 5}건" if len(errors) > 5 else ""
+            msg += f"\n{sample}{extra}"
+        self.slack.send(msg)
+
+    def on_fatal(self, exc: Exception) -> None:
+        self.slack.send(f"🔥 치명적 오류로 사이클 실패: {exc}")
 
 
 if __name__ == "__main__":
